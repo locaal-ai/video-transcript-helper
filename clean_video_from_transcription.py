@@ -2,10 +2,12 @@
 # from filler words (e.g. um, uh, like, etc.)
 #
 # Usage:
-# python clean_video_from_transcription.py <input_video_file> <input_json_file> <output_video_file>
+# python clean_video_from_transcription.py <input_video_file> <input_json_file>
+#
+# The output video file will be saved in the same directory as the input video file
 #
 # Example:
-# python clean_video_from_transcription.py "input_video.mp4" "input_json.json" "output_video.mp4"
+# python clean_video_from_transcription.py "input_video.mp4" "input_json.json"
 
 import argparse
 import json

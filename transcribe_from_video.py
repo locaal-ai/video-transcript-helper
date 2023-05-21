@@ -2,6 +2,16 @@
 # the output will be a JSON file with the transcription
 # use argparse to get the input video file and the output text file
 # use the AWS transcribe using the AWS CLI to transcribe the audio
+#
+# Usage:
+# python transcribe_from_video.py <input_video_file>
+#
+# The output JSON file will be saved in the same directory as the input video file
+#
+# Example:
+# python transcribe_from_video.py "input_video.mp4"
+#
+# The output JSON file will have the name "input_video.json"
 
 import argparse
 import json
