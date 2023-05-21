@@ -11,21 +11,16 @@ import argparse
 import json
 import subprocess
 import os
-import re
-import string
-import uuid
 
 # get the input video file and the output text file
 parser = argparse.ArgumentParser()
 parser.add_argument("input_video_file", help="input video file")
 parser.add_argument("input_json_file", help="input json transcription file")
-parser.add_argument("output_video_file", help="output video file")
 args = parser.parse_args()
 
 # get the input video file name and the output text file name
 input_video_file = args.input_video_file
 input_json_file = args.input_json_file
-output_video_file = args.output_video_file
 
 # read the input JSON file
 print("Parsing the input JSON file...")
@@ -33,21 +28,48 @@ with open(input_json_file) as f:
     data = json.load(f)
 
 # get all the items where .results.items.alternatives.content is a filler word
-filler_words = ["um", "uh", "like", "you know", "so"]
+filler_words = ["um", "uh", "so"]
 
-# get the filler words from the JSON file
-filler_words_from_json = []
-for item in data["results"]["items"]:
-    if item["type"] == "pronunciation":
-        # check in lowercase
-        if item["alternatives"][0]["content"].lower() in filler_words:
-            filler_words_from_json.append(item)
+# filter to keep only pronunciations
+pronunciation_items = list(filter(lambda x: x["type"] == "pronunciation", data["results"]["items"]))
+
+# merge consecutive filler words in pronunciation_items
+i = 0
+while i < len(pronunciation_items)-1:
+    if pronunciation_items[i]["alternatives"][0]["content"].lower() in filler_words and \
+            pronunciation_items[i+1]["alternatives"][0]["content"].lower() in filler_words:
+        print(f"Found consecutive filler words: {pronunciation_items[i]['alternatives'][0]['content']} "
+                f"{pronunciation_items[i+1]['alternatives'][0]['content']}")
+        # merge the start and end timings of the two items
+        pronunciation_items[i]["end_time"] = pronunciation_items[i+1]["end_time"]
+
+        # remove the second item
+        pronunciation_items.pop(i+1)
+    else:
+        i += 1
 
 # extract the timings from the filler words items, in (start, end) tuples
 # parse float from string
-filler_words_timings = [(0, 0)]
-for item in filler_words_from_json:
-    filler_words_timings.append((float(item["start_time"]), float(item["end_time"])))
+# the end time of a filler word is the start time of the next pronunciation
+# unless the next pronunciation is also a filler word, in which case the end time is the end time
+# of the next pronunciation
+filler_words_timings = [(0.0, 0.0)]
+for i, item in enumerate(pronunciation_items[:-1]):
+    # check in lowercase
+    if item["alternatives"][0]["content"].lower() in filler_words:
+        # get the start & end time of the filler word
+        start_time = float(item["start_time"])
+        # end_time = float(pronunciation_items[i+1]["start_time"]) + 0.1
+        end_time = float(item["end_time"])
+        # the duration of a filler word is at least 0.3 seconds
+        if end_time - start_time < 0.3:
+            end_time = start_time + 0.3
+        # if the next pronunciation is farther ahead than 0.3 seconds, then the start time of the
+        # next pronunciation as the end time of this filler word
+        if float(pronunciation_items[i+1]["start_time"]) > end_time:
+            end_time = float(pronunciation_items[i+1]["start_time"])
+
+        filler_words_timings.append((start_time, end_time))
 
 # append in the end the duration of the video
 # find the duration of the video using ffprobe
@@ -78,29 +100,57 @@ print(filler_words_timings[:5])
 # and then concatenate the inputs
 #      [0v][0a][1v][1a][2v][2a]concat=n=3:v=1:a=1[outv][outa]
 
-n_filrs = 5 #len(filler_words_timings)
+n_filrs = len(filler_words_timings)
 
-filter = ""
-for i in range(1, n_filrs):
-    # stagger the start and end time of the video and audio filters
-    # so that we take the "non-filler" portion of the video
-    start_time = filler_words_timings[i-1][1]
-    end_time = filler_words_timings[i][0]
 
-    # add the video filter
-    filter += f"[0:v]trim=start={start_time}:end={end_time},setpts=PTS-STARTPTS[{i}v];"
+def build_ffmpeg_cmd_with_filter():
+    filter = ""
+    for i in range(1, n_filrs):
+        # stagger the start and end time of the video and audio filters
+        # so that we take the "non-filler" portion of the video
+        start_time = filler_words_timings[i-1][1]
+        end_time = filler_words_timings[i][0]
 
-    # add the audio filter
-    filter += f"[0:a]atrim=start={start_time}:end={end_time},asetpts=PTS-STARTPTS[{i}a];"
+        # add the video filter
+        filter += f"[0:v]trim=start={start_time}:end={end_time},setpts=PTS-STARTPTS[{i}v];"
 
-# add the concat filter
-filter += f"{''.join([f'[{i}v][{i}a]' for i in range(n_filrs)])}concat=n={n_filrs}:v=1:a=1[outv][outa]"
-print("Filter:")
-print(filter)
+        # add the audio filter
+        filter += f"[0:a]atrim=start={start_time}:end={end_time},asetpts=PTS-STARTPTS[{i}a];"
+
+    # add the concat filter
+    filter += f"{''.join([f'[{i}v][{i}a]' for i in range(n_filrs)])}concat=n={n_filrs}:v=1:a=1[outv][outa]"
+    print("Filter:")
+    print(filter)
+
+    return ["ffmpeg", "-i", input_video_file, "-filter_complex", filter, "-map", "[outv]",
+            "-map", "[outa]", "-avoid_negative_ts", "1", "-y"]
+
+
+def build_ffmpeg_cmd_with_ss_to():
+    cmd = ["ffmpeg"]
+    for i in range(1, n_filrs):
+        # stagger the start and end time of the video and audio filters
+        # so that we take the "non-filler" portion of the video
+        start_time = filler_words_timings[i-1][1]  # end of last filler word
+        end_time = filler_words_timings[i][0]  # start of next filler word
+
+        # add the start and end time to the ffmpeg command
+        cmd += ["-ss", str(start_time)+'s', "-to", str(end_time)+'s', "-i", input_video_file]
+
+    # add the concat filter
+    filter = f"{''.join([f'[{i}:v][{i}:a]' for i in range(n_filrs-1)])}concat=n={n_filrs-1}:v=1:a=1[outv][outa]"
+
+    cmd += ["-filter_complex", filter, "-map", "[outv]", "-map", "[outa]", "-avoid_negative_ts",
+            "1", "-y", "-loglevel", "error"]
+    return cmd
+
+
+# build the ffmpeg command
+ffmpeg_cmd = build_ffmpeg_cmd_with_ss_to()
+output_video_file = os.path.splitext(input_video_file)[0] + "_cleaned.mp4"
 
 # run ffmpeg to remove the filler words
 print("Removing the filler words from the video...")
-subprocess.run(["ffmpeg", "-i", input_video_file, "-filter_complex", filter, "-map", "[outv]",
-                "-map", "[outa]", "-y", output_video_file])
+subprocess.run([*ffmpeg_cmd, output_video_file])
 
 print("Done.")

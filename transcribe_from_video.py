@@ -8,18 +8,15 @@ import json
 import subprocess
 import os
 import re
-import string
 import uuid
 
 # get the input video file and the output text file
 parser = argparse.ArgumentParser()
 parser.add_argument("input_video_file", help="input video file")
-parser.add_argument("output_text_file", help="output text file")
 args = parser.parse_args()
 
 # get the input video file name and the output text file name
 input_video_file = args.input_video_file
-output_text_file = args.output_text_file
 
 # get the input video file name without the extension
 input_video_file_name = os.path.splitext(input_video_file)[0]
@@ -62,7 +59,7 @@ flac_audio_file = os.path.join(os.path.dirname(input_video_file), flac_audio_fil
 
 print(f"Converting video file to FLAC audio file using ffmpeg... {flac_audio_file}")
 subprocess.run(["ffmpeg", "-i", input_video_file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "flac",
-                "-qscale:a", "0", "-loglevel", "quiet", "-y", flac_audio_file])
+                "-qscale:a", "0", "-loglevel", "quiet", "-copyts", "-y", flac_audio_file])
 
 # generate a UUID for the job name
 job_name = f"transcribe-job-{uuid.uuid4().hex}"
