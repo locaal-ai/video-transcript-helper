@@ -38,8 +38,9 @@ i = 0
 while i < len(pronunciation_items)-1:
     if pronunciation_items[i]["alternatives"][0]["content"].lower() in filler_words and \
             pronunciation_items[i+1]["alternatives"][0]["content"].lower() in filler_words:
-        print(f"Found consecutive filler words: {pronunciation_items[i]['alternatives'][0]['content']} "
-                f"{pronunciation_items[i+1]['alternatives'][0]['content']}")
+        print("Found consecutive filler words: "
+              "{pronunciation_items[i]['alternatives'][0]['content']} "
+              f"{pronunciation_items[i+1]['alternatives'][0]['content']}")
         # merge the start and end timings of the two items
         pronunciation_items[i]["end_time"] = pronunciation_items[i+1]["end_time"]
 
@@ -118,7 +119,8 @@ def build_ffmpeg_cmd_with_filter():
         filter += f"[0:a]atrim=start={start_time}:end={end_time},asetpts=PTS-STARTPTS[{i}a];"
 
     # add the concat filter
-    filter += f"{''.join([f'[{i}v][{i}a]' for i in range(n_filrs)])}concat=n={n_filrs}:v=1:a=1[outv][outa]"
+    all_inputs = ''.join([f"[{i}v][{i}a]" for i in range(n_filrs)])
+    filter += f"{all_inputs}concat=n={n_filrs}:v=1:a=1[outv][outa]"
     print("Filter:")
     print(filter)
 
@@ -138,7 +140,8 @@ def build_ffmpeg_cmd_with_ss_to():
         cmd += ["-ss", str(start_time)+'s', "-to", str(end_time)+'s', "-i", input_video_file]
 
     # add the concat filter
-    filter = f"{''.join([f'[{i}:v][{i}:a]' for i in range(n_filrs-1)])}concat=n={n_filrs-1}:v=1:a=1[outv][outa]"
+    all_inputs = ''.join([f'[{i}:v][{i}:a]' for i in range(n_filrs-1)])
+    filter = f"{all_inputs}concat=n={n_filrs-1}:v=1:a=1[outv][outa]"
 
     cmd += ["-filter_complex", filter, "-map", "[outv]", "-map", "[outa]", "-avoid_negative_ts",
             "1", "-y", "-loglevel", "error"]
