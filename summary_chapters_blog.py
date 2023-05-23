@@ -2,7 +2,8 @@
 # chapters for adding to the video description on YouTube.
 #
 # Usage:
-# python summary_and_chapters.py <input_json_file> [--generate_summary] [--generate_chapters] [--print_prompts] [--trim_length]
+# python summary_and_chapters.py <input_json_file> [--generate_summary] [--generate_chapters] \
+#     [--generate_blog] [--print_prompts] [--trim_length]
 #
 # Example:
 # python summary_and_chapters.py "input_json.json"
@@ -19,6 +20,7 @@ parser.add_argument("input_json_file", help="input json transcription file")
 # non positional arguments for generating summary and chapters
 parser.add_argument("--generate_summary", action="store_true", help="generate summary")
 parser.add_argument("--generate_chapters", action="store_true", help="generate chapters")
+parser.add_argument("--generate_blog", action="store_true", help="generate blog")
 parser.add_argument("--print_prompts", action="store_true", help="print prompts")
 parser.add_argument("--trim_length", type=int, default=100, help="trim length")
 args = parser.parse_args()
@@ -171,6 +173,35 @@ if args.generate_chapters:
     # print the generated chapters
     print("----------------------")
     print(generated_chapters)
+    print("----------------------")
+
+if args.generate_blog:
+    prompt = "transcript for the video:\n"
+    prompt += "---\n"
+    prompt += data["results"]["transcripts"][0]["transcript"]
+    prompt += "---\n"
+    prompt += "write a blog post for the above video. write the title and then the post body.\n"
+    prompt += "Title of the blog post:\n"
+
+    if args.print_prompts:
+        print(prompt)
+
+    history = [{"role": "user", "content": prompt}]
+
+    # send a request to the OpenAI API (model gpt-3.5-turbo) to generate the blog post
+    print("Sending a request to the OpenAI API to generate the blog post...")
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=history,
+    )
+
+    # get the generated blog post
+    generated_blog = response["choices"][0]["message"]["content"]
+    history += [{"role": "assistant", "content": generated_blog}]
+
+    # print the generated blog post
+    print("----------------------")
+    print(generated_blog)
     print("----------------------")
 
 print("Done.")

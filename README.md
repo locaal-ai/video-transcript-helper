@@ -1,5 +1,8 @@
-# filler-word-video-zapper
-Zap filler words ('uh', 'um') in videos using AWS Transcribe and FFMPEG
+# Video Transcript Helper
+This project contains three scripts:
+- `transcribe.py`: Transcribe a video using AWS Transcribe
+- `clean_video_from_transcription.py`: Zap filler words ('uh', 'um') in videos using FFMPEG
+- `summary_chapters_blog.py`: Generate a summary, video chapters and a blog post
 
 ## Usage
 Transcribe the video:
@@ -17,6 +20,12 @@ $ python clean_video_from_transcription.py <path-to-video> <path-to-transcript>
 ```
 
 The output will be a file called `<video-name>-clean.mp4` in the same directory as the video.
+
+Generate the summary, chapters and blog post:
+
+```sh
+$ python summary_chapters_blog.py --generate_summary --generate_chapters --generate_blog <path-to-transcript>
+```
 
 ## Dependencies
 - Python 3.6+
