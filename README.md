@@ -1,6 +1,6 @@
 # Video Transcript Helper
 This project contains three scripts:
-- `transcribe.py`: Transcribe a video using AWS Transcribe
+- `transcribe_from_video_XXX.py`: Transcribe a video
 - `clean_video_from_transcription.py`: Zap filler words ('uh', 'um') in videos using FFMPEG
 - `summary_chapters_blog.py`: Generate a summary, video chapters and a blog post
 
@@ -8,7 +8,7 @@ This project contains three scripts:
 Transcribe the video:
 
 ```sh
-$ python transcribe.py <path-to-video>
+$ python transcribe_from_video_XXX.py <path-to-video>
 ```
 
 The output will be a file called `<video-name>.json` in the same directory as the video.
