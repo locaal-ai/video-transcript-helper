@@ -61,7 +61,7 @@ output_wav_file_name_with_path = os.path.join(os.path.dirname(input_video_file),
 # get the command to extract the audio from the input video file
 # the output will be a wav file with the same name as the input video file
 # the output wav file will be saved in the same directory as the input video file
-command = "ffmpeg -i " + input_video_file + " -ab 160k -ac 2 -ar 44100 -vn -y " + output_wav_file_name_with_path
+command = "ffmpeg -i " + input_video_file + " -ar 16000 -ac 1 -ar 44100 -vn -loglevel quiet -y " + output_wav_file_name_with_path
 
 # execute the command to extract the audio from the input video file
 # the output will be a wav file with the same name as the input video file
