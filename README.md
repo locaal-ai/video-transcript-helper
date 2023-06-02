@@ -5,7 +5,7 @@ This project contains three scripts:
 - `summary_chapters_blog.py`: Generate a summary, video chapters and a blog post
 
 ## Usage
-Transcribe the video:
+Transcribe the video: (either AWS Transcribe API or [Faster-Whisper](https://github.com/guillaumekln/faster-whisper))
 
 ```sh
 $ python transcribe_from_video_XXX.py <path-to-video>
