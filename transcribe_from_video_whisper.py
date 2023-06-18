@@ -19,8 +19,7 @@ import subprocess
 import os
 import re
 import uuid
-import whisper
-
+from faster_whisper import WhisperModel
 
 # get the input video file and the output text file
 parser = argparse.ArgumentParser()
@@ -56,46 +55,59 @@ input_video_file_name_without_path = os.path.basename(input_video_file_name)
 output_wav_file_name = input_video_file_name_without_path + ".wav"
 
 # get the output wav file name with the path
-output_wav_file_name_with_path = os.path.join(os.path.dirname(input_video_file), output_wav_file_name)
-
-# get the command to extract the audio from the input video file
-# the output will be a wav file with the same name as the input video file
-# the output wav file will be saved in the same directory as the input video file
-command = "ffmpeg -i " + input_video_file + " -ar 16000 -ac 1 -ar 44100 -vn -loglevel quiet -y " + output_wav_file_name_with_path
+output_wav_file_name_with_path = os.path.join(os.path.dirname(input_video_file),
+                                              output_wav_file_name)
 
 # execute the command to extract the audio from the input video file
 # the output will be a wav file with the same name as the input video file
 # the output wav file will be saved in the same directory as the input video file
-subprocess.call(command, shell=True)
+subprocess.run(["ffmpeg", "-i", input_video_file, "-vn", "-ac", "1", "-ar", "16000",
+                "-loglevel", "quiet", "-copyts", "-y", output_wav_file_name_with_path])
 
-model = whisper.load_model("tiny")
+# check if the output wav file exists
+if not os.path.exists(output_wav_file_name_with_path):
+    print("Error: the output wav file does not exist \"" + output_wav_file_name_with_path + "\"")
+    exit(1)
+
+model = WhisperModel("base")
 # hack the model to produce filler words by adding them as an input prompt
-result = model.transcribe(output_wav_file_name_with_path, 
+segments, transcriptionInfo = model.transcribe(output_wav_file_name_with_path,
                           initial_prompt='So uhm, yeaah. Uh, um. Uhh, Umm. Like, Okay, ehm, uuuh.',
                           word_timestamps=True)
 
 punctuation_marks = '\"\'.。,，!！?？:：”)]}、'
 
+new_segments = []
 # split punctuation from words into new items
-for segment in result['segments']:
+for segment in segments:
     new_words = []
-    for word in segment['words']:
-        if len(word['word']) < 1:
+    for word in segment.words:
+        wordStr = word.word.strip()
+        if len(wordStr) < 1:
             continue
-        if word['word'][-1] in punctuation_marks:
-            punctuation = word['word'][-1]
-            word['word'] = word['word'][:-1].strip()
-            new_words.append(word)
+        if wordStr[-1] in punctuation_marks:
+            punctuation = wordStr[-1]
             new_words.append({
-                'word': punctuation, 
-                'start': word['end'], 
-                'end': word['end'], 
-                'probability': word['probability']
+                'word': wordStr[:-1].strip(),
+                'start': word.start,
+                'end': word.end,
+                'probability': word.probability
+            })
+            new_words.append({
+                'word': punctuation,
+                'start': word.end,
+                'end': word.end,
+                'probability': word.probability
             })
         else:
-            new_words.append(word)
-    segment['words'] = new_words
-
+            new_words.append({
+                'word': word.word,
+                'start': word.end,
+                'end': word.end,
+                'probability': word.probability
+            })
+    new_segment = {'words': new_words}
+    new_segments.append(new_segment)
 
 # print(json.dumps(result, indent=4))
 
@@ -103,12 +115,15 @@ for segment in result['segments']:
 output_json_file_name = input_video_file_name_without_path + ".json"
 
 # get the output json file name with the path
-output_json_file_name_with_path = os.path.join(os.path.dirname(input_video_file), output_json_file_name)
+output_json_file_name_with_path = os.path.join(os.path.dirname(input_video_file),
+                                               output_json_file_name)
 
 # write the output json file where the output format is:
-# { 
+# {
 #     "results": {
-#         "text": "the transcription",
+#         "transcripts": [{
+#             "transcript": "the transcript"
+#         }],
 #         "items": [
 #             {
 #                 "alternatives": [
@@ -119,7 +134,6 @@ output_json_file_name_with_path = os.path.join(os.path.dirname(input_video_file)
 #                 ],
 #                 "start_time": 0.0,
 #                 "end_time": 0.0,
-#                 "confidence": 0.0,
 #                 "type": "pronunciation"
 #             },
 #             ...
@@ -149,7 +163,12 @@ output_json_file_name_with_path = os.path.join(os.path.dirname(input_video_file)
 with open(output_json_file_name_with_path, 'w') as outfile:
     json.dump({
             "results": {
-                "text": " ".join([word['word'].strip() for segment in result['segments'] for word in segment['words']]),
+                "transcripts": [
+                    {
+                        "transcript": " ".join([word['word'].strip() for segment in
+                                                new_segments for word in segment['words']]),
+                    }
+                ],
                 "items": [
                     {
                         "alternatives": [
@@ -161,9 +180,9 @@ with open(output_json_file_name_with_path, 'w') as outfile:
                         "start_time": word['start'],
                         "end_time": word['end'],
                         "confidence": word['probability'],
-                        "type": "pronunciation" if word['word'] not in punctuation_marks else "punctuation"
-                    } for segment in result['segments'] for word in segment['words']
+                        "type": ("pronunciation" if word['word'] not in punctuation_marks else
+                                 "punctuation")
+                    } for segment in new_segments for word in segment['words']
                 ]
             }
         }, outfile, indent=2)
-

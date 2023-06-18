@@ -43,7 +43,7 @@ for item in data["results"]["items"]:
     # if the item is a punctuation, then it's the end of the sentence
     if item["type"] == "punctuation" and item["alternatives"][0]["content"] in [".", "?", "!"]:
         # add an 'end_time' to the punctuation item by using the end time of the last word
-        item["end_time"] = sentence[-1]["end_time"]
+        item["end_time"] = sentence[-1]["end_time"] if len(sentence) > 0 else item["start_time"]
 
         # add the punctuation to the sentence
         sentence.append(item)
@@ -56,7 +56,7 @@ for item in data["results"]["items"]:
     else:
         # filter out the filler words
         if item["type"] == "pronunciation" and \
-           item["alternatives"][0]["content"].lower() in ["um", "uh", "so", "like"]:
+           item["alternatives"][0]["content"].lower() in ["um", "uh", "so", "hmm", "like"]:
             continue
 
         # filter out punctuation
@@ -83,13 +83,19 @@ def convert_senconds_to_mmss(seconds):
     return f"{int(seconds // 60):02d}:{int(seconds % 60):02d}"
 
 
-def build_summary(trim=True):
+def build_summary(trim=True, remove_filler_words=True):
     # build a summary list from the senstences and their timings
     summary = []
     for sentence, timings in zip(sentences, sentences_timings):
+        # get the pronounciations from the sentence
+        pronounciations = [item["alternatives"][0]["content"].strip() for item in sentence if item["type"] == "pronunciation"]
+
+        if remove_filler_words:
+            # remove the filler words from the sentence
+            pronounciations = [word for word in pronounciations if word.lower() not in ["um", "uh", "so", "hmm", "like"]]
+
         # get the sentence text
-        sentence_text = " ".join([item["alternatives"][0]["content"] for item in sentence
-                                  if item["type"] == "pronunciation"])
+        sentence_text = " ".join(pronounciations) + "."
 
         if trim:
             # trim the sentence text to a maximum of 100 characters
@@ -178,9 +184,10 @@ if args.generate_chapters:
 if args.generate_blog:
     prompt = "transcript for the video:\n"
     prompt += "---\n"
-    prompt += data["results"]["transcripts"][0]["transcript"]
+    for sentence in build_summary(trim=False):
+        prompt += f"{sentence['text']}\n"
     prompt += "---\n"
-    prompt += "write a blog post for the above video. write the title and then the post body.\n"
+    prompt += "write a blog post of at least 500 words for the above video. write the title and then the post body.\n"
     prompt += "Title of the blog post:\n"
 
     if args.print_prompts:
