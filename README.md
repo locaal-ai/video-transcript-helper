@@ -1,8 +1,18 @@
 # Video Transcript Helper
+A comprehensive toolkit designed for content creators, educators, digital marketers, and video editing enthusiasts. 
+It harnesses the power of AI and video processing through a suite of Python scripts that simplify the post-production process. 
+This free open-source project aims to transform the way users handle video content, turning hours of editing into a task of a few command lines.
+
 This project contains three scripts:
 - `transcribe_from_video_XXX.py`: Transcribe a video
 - `clean_video_from_transcription.py`: Zap filler words ('uh', 'um') in videos using FFMPEG
 - `summary_chapters_blog.py`: Generate a summary, video chapters and a blog post
+
+Roadmap of future features:
+- Remove or speedup (shorten) periods of "silence"
+- Enhance speech by voice separation models
+- Generate a supercut for a quick video snippet
+- Add Audiogram / Kareoke kind of subtitles on the video
 
 ## Usage
 Transcribe the video: (either AWS Transcribe API or [Faster-Whisper](https://github.com/guillaumekln/faster-whisper))
