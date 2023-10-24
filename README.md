@@ -13,6 +13,7 @@ Roadmap of future features:
 - Enhance speech by voice separation models
 - Generate a supercut for a quick video snippet
 - Add Audiogram / Kareoke kind of subtitles on the video
+- Translate the subtitles to any language
 
 ## Usage
 Transcribe the video: (either AWS Transcribe API or [Faster-Whisper](https://github.com/guillaumekln/faster-whisper))
