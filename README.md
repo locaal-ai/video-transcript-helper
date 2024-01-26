@@ -1,4 +1,11 @@
 # Video Transcript Helper
+
+<div align="center">
+
+[![Discord](https://img.shields.io/discord/1200229425141252116)](https://discord.gg/KbjGU2vvUz)
+
+</div>
+
 A comprehensive toolkit designed for content creators, educators, digital marketers, and video editing enthusiasts. 
 It harnesses the power of AI and video processing through a suite of Python scripts that simplify the post-production process. 
 This free open-source project aims to transform the way users handle video content, turning hours of editing into a task of a few command lines.
